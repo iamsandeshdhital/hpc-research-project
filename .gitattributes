@@ -1,0 +1,27 @@
+# Normalise line endings in the repository, check out LF.
+* text=auto eol=lf
+
+*.cpp   text
+*.hpp   text
+*.h     text
+*.cu    text
+*.cuh   text
+*.c     text
+*.txt   text
+*.md    text
+*.yml   text
+*.yaml  text
+*.cmake text
+CMakeLists.txt text
+*.in    text
+
+# Binary / generated - never normalise.
+*.csv   binary
+*.json  binary
+*.mm    binary
+*.mtx   binary
+*.tar.gz binary
+*.pdf   binary
+*.png   binary
+*.jpg   binary
+*.svg   binary

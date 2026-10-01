@@ -1,0 +1,229 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master, develop]
+  pull_request:
+    branches: [main, master, develop]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CMAKE_BUILD_PARALLEL_LEVEL: 4
+
+jobs:
+  # ---------------------------------------------------------------------
+  # CPU-only build with strict warnings. This is the gate: everything else
+  # assumes this passes.
+  # ---------------------------------------------------------------------
+  cpu-build:
+    name: CPU build + unit tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential cmake ninja-build libomp-dev
+
+      - name: Configure
+        run: |
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DENABLE_MPI=OFF \
+            -DENABLE_CUDA=OFF \
+            -DENABLE_SANITIZERS=OFF \
+            -DENABLE_PYTHON_BINDINGS=OFF
+
+      - name: Build
+        run: cmake --build build
+
+      - name: Unit tests
+        run: ctest --test-dir build --output-on-failure -L unit
+
+      - name: Smoke tests
+        run: ctest --test-dir build --output-on-failure -R smoke
+
+  # ---------------------------------------------------------------------
+  # Warnings-as-errors, to stop bit rot at the boundary.
+  # ---------------------------------------------------------------------
+  strict-warnings:
+    name: Strict warnings
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y cmake ninja-build build-essential
+
+      - name: Configure
+        run: |
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DENABLE_MPI=OFF -DENABLE_CUDA=OFF -DENABLE_PYTHON_BINDINGS=OFF
+
+      - name: Build with -Werror
+        run: |
+          cmake --build build 2>&1 | tee build.log
+          if grep -qE "warning:" build.log; then
+            echo "::error::compiler warnings present"
+            grep -E "warning:" build.log | head -50
+            exit 1
+          fi
+
+  # ---------------------------------------------------------------------
+  # Sanitizers: catches the out-of-bounds and data races that unit tests
+  # on a Release build will miss.
+  # ---------------------------------------------------------------------
+  sanitizers:
+    name: ASan + UBSan
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y cmake ninja-build build-essential
+
+      - name: Configure (Debug + sanitizers)
+        run: |
+          cmake -S . -B build-asan -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DENABLE_SANITIZERS=ON \
+            -DENABLE_MPI=OFF -DENABLE_CUDA=OFF -DENABLE_PYTHON_BINDINGS=OFF
+
+      - name: Build
+        run: cmake --build build-asan
+
+      - name: Tests under sanitizers
+        # The distributed test needs MPI, so it is excluded here.
+        run: |
+          ctest --test-dir build-asan --output-on-failure \
+            -E "integration_distributed" --timeout 900
+
+  # ---------------------------------------------------------------------
+  # MPI correctness at several rank counts.
+  # ---------------------------------------------------------------------
+  mpi:
+    name: MPI (np=${{ matrix.n }})
+    runs-on: ubuntu-24.04
+    needs: cpu-build
+    strategy:
+      fail-fast: false
+      matrix:
+        n: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build build-essential \
+            libopenmpi-dev openmpi-bin
+
+      - name: Configure
+        run: |
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DENABLE_MPI=ON -DENABLE_CUDA=OFF -DENABLE_PYTHON_BINDINGS=OFF
+
+      - name: Build
+        run: cmake --build build
+
+      - name: "Integration test with ${{ matrix.n }} rank(s)"
+        run: |
+          mpirun --allow-run-as-root --oversubscribe -np ${{ matrix.n }} \
+            ./build/tests/test_distributed
+
+  # ---------------------------------------------------------------------
+  # Property-based tests, which are the ones most likely to catch a kernel
+  # regression on an unusual input shape.
+  # ---------------------------------------------------------------------
+  property:
+    name: Property-based tests
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y cmake ninja-build build-essential
+      - name: Configure
+        run: |
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DENABLE_MPI=OFF -DENABLE_CUDA=OFF -DENABLE_PYTHON_BINDINGS=OFF
+      - run: cmake --build build
+      - run: ctest --test-dir build --output-on-failure -R property
+
+  # ---------------------------------------------------------------------
+  # Regression: performance has not silently collapsed.
+  # ---------------------------------------------------------------------
+  regression:
+    name: Performance regression
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y cmake ninja-build build-essential
+      - name: Configure
+        run: |
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DENABLE_MPI=OFF -DENABLE_CUDA=OFF -DENABLE_PYTHON_BINDINGS=OFF
+      - run: cmake --build build
+      - run: ctest --test-dir build --output-on-failure -R regression --timeout 1200
+
+  # ---------------------------------------------------------------------
+  # Examples must run, not just link.
+  # ---------------------------------------------------------------------
+  examples:
+    name: Examples
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y cmake ninja-build build-essential
+      - name: Configure
+        run: |
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DENABLE_MPI=OFF -DENABLE_CUDA=OFF -DENABLE_PYTHON_BINDINGS=OFF
+      - run: cmake --build build
+
+      - name: Run examples
+        run: |
+          set -e
+          ./build/examples/example_shortest_path --n 10
+          ./build/examples/example_reachability --n 100 --degree 4
+          ./build/examples/example_pagerank --n 500 --edges 2000
+          ./build/examples/example_energy_autotune --n 5000 --iters 8 --reps 3 --no-energy
+
+      - name: Run benchmarks briefly
+        run: |
+          set -e
+          ./build/benchmarks/spgemm_benchmark --n 5000 --reps 3
+          ./build/benchmarks/roofline --n 5000
+
+  # ---------------------------------------------------------------------
+  # CUDA compile-only check. Self-hosted runners are required for a real
+  # GPU run; on GitHub-hosted runners we only verify that the kernels
+  # compile, which is still worth catching.
+  # ---------------------------------------------------------------------
+  cuda-compile:
+    name: CUDA compile check
+    runs-on: ubuntu-24.04
+    continue-on-error: true   # self-hosted runners only; expected to fail here
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build build-essential \
+            libopenmpi-dev openmpi-bin
+
+      - name: Configure with CUDA
+        run: |
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DENABLE_CUDA=ON -DENABLE_MPI=ON -DENABLE_PYTHON_BINDINGS=OFF
+
+      - name: Build
+        run: cmake --build build

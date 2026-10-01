@@ -1,0 +1,80 @@
+# Doxyfile.in - configured by CMake, do not edit the generated copy.
+#
+# Only public headers are documented; internal .cpp files are included for
+# cross-referencing (EXTRACT_ALL is off, so undocumented internals stay quiet).
+
+PROJECT_NAME           = "@DOXYGEN_PROJ_NAME@"
+PROJECT_NUMBER         = "@DOXYGEN_PROJ_VERSION@"
+PROJECT_BRIEF          = "@DOXYGEN_PROJ_BRIEF@"
+OUTPUT_DIRECTORY       = "@DOXYGEN_OUTPUT_DIR@"
+
+# Create a tag file so projects that depend on this one can cross-reference.
+GENERATE_TAGFILE       = "@DOXYGEN_OUTPUT_DIR@/hpc.tagfile.h"
+
+INPUT                  = "@DOXYGEN_INPUT_DIR@/include" \
+                         "@DOXYGEN_INPUT_DIR@/docs" \
+                         "@DOXYGEN_INPUT_DIR@/README.md"
+FILE_PATTERNS          = *.hpp *.h *.md
+RECURSIVE              = YES
+EXCLUDE_PATTERNS       = */build/* */build-*/* */.git/* */third_party/*
+EXCLUDE_SYMBOLS        = hpc::kernel *::*Impl
+
+# Public-only documentation.
+EXTRACT_ALL            = NO
+EXTRACT_PRIVATE        = NO
+EXTRACT_STATIC         = YES
+EXTRACT_LOCAL_CLASSES  = NO
+HIDE_UNDOC_MEMBERS     = NO
+HIDE_UNDOC_CLASSES     = NO
+INTERNAL_DOCS          = NO
+CASE_SENSE_NAMES       = YES
+
+# Warn about anything undocumented, since that is what rots.
+WARN_IF_UNDOCUMENTED   = YES
+WARN_IF_DOC_ERROR      = YES
+WARN_NO_PARAMDOC       = YES
+WARN_AS_ERROR          = NO     # flipped to YES by the docs-strict target
+WARN_LOGFILE           = "@DOXYGEN_OUTPUT_DIR@/doxygen-warnings.log"
+
+# Cross-reference and links.
+QUIET                  = YES
+WARNINGS               = YES
+WARN_IF_INCOMPLETE_DOC = YES
+SORT_MEMBER_DOCS       = NO
+SORT_BRIEF_DOCS        = NO
+SORT_GROUP_NAMES       = NO
+
+GENERATE_HTML          = YES
+HTML_OUTPUT            = html
+GENERATE_LATEX         = NO
+GENERATE_TREEVIEW      = YES
+DISABLE_INDEX          = NO
+FULL_SIDEBAR           = YES
+
+GENERATE_XML           = NO
+XML_OUTPUT             = xml
+GENERATE_MAN           = NO
+GENERATE_RTF           = NO
+
+# Source browsing: link to GitHub.
+ENABLE_PREPROCESSING   = YES
+MACRO_EXPANSION        = YES
+EXPAND_ONLY_PREDEF     = YES
+PREDEFINED             = HPC_API= \
+                         HPC_HOST_DEVICE= \
+                         HPC_DEVICE= \
+                         HPC_GLOBAL= \
+                         HPC_HOST= \
+                         HPC_ALIGN(x)= \
+                         HPC_DEPRECATED(msg)= \
+                         __CUDACC__ \
+                         __host__= \
+                         __device__= \
+                         __global__= \
+                         __restrict__
+
+ALPHABETICAL_INDEX     = YES
+ALPHA_SORT_MEMBER_DOCS = NO
+
+# The project is honest about being unvalidated; say so in the docs too.
+PROJECT_LOGO           =

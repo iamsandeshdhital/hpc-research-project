@@ -1,0 +1,23 @@
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+
+set(ENABLE_MPI @ENABLE_MPI@)
+set(ENABLE_CUDA @ENABLE_CUDA@)
+set(ENABLE_OPENMP @ENABLE_OPENMP@)
+
+if(ENABLE_MPI)
+    find_dependency(MPI)
+endif()
+
+if(ENABLE_OPENMP)
+    find_dependency(OpenMP)
+endif()
+
+if(ENABLE_CUDA)
+    find_dependency(CUDAToolkit)
+endif()
+
+include("${CMAKE_CURRENT_LIST_DIR}/HPCResearchProjectTargets.cmake")
+
+check_required_components(HPCResearchProject)

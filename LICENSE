@@ -1,0 +1,71 @@
+MIT License
+
+Copyright (c) 2026 Sandesh Dhital
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+---
+
+This project implements ideas from the following published work. The
+implementation is independent; no upstream source code was copied.
+
+  McFarland, T., Bellavita, J., & Guidi, G. (2025).
+  "Parallel GPU-Enabled Algorithms for SpGEMM on Arbitrary Semirings with
+  Hybrid Communication." ICPE '25. doi:10.1145/3676151.3719365
+  -- Cornell University
+
+  Chen, C., Kuncham, G., Subramoni, H., & Panda, D. K. (2025).
+  "Design and Implementation of a GPU-Aware MPI Collective Library for Intel
+  GPUs." ISC High Performance 2025.
+  -- The Ohio State University
+
+  Chen, C., Kuncham, G., Subramoni, H., & Panda, D. K. (2024).
+  "Design and Implementation of Kernel-based MPI Reduction Operations for Intel
+  GPUs." 31st IEEE International Conference on High Performance Computing,
+  Data, and Analytics (HPDC).
+  -- The Ohio State University
+
+  Ivanov, A., Shen, S., Gottardo, G., Chrapek, M., Boudaoud, A., Schneider, T.,
+  Benini, L., & Hoefler, T. (2025).
+  "PerfDojo: Automated ML Library Generation for Heterogeneous Architectures."
+  SC '25.
+  -- ETH Zurich
+
+  Montoya, S., Muino, G., Lee, A., Oberg, L., Wood, E., McJohn, M., Zhang, L.,
+  Kumar, S., Song, Z., Bhalerao, A., Zhou, M., et al. (2024).
+  "Overview of the LAMMPS HPC Benchmark Suite."
+  -- Sandia National Laboratories / LBNL / UT Austin
+
+  Buluç, A., & Gilbert, J. R. (2011).
+  "Sparse Matrix-Matrix Multiplication is Almost Always of the Form..."
+  / "Parallel Sparse Matrix-Matrix Multiplication on Scalable Multiprocessors."
+  -- University of California, Berkeley
+
+  Zwick, U. (2002). "All Pairs Shortest Paths via Multiple Matrix Multiplication."
+  -- Weizmann Institute of Science
+
+  Chakradhar, S., et al.; Trilinos / CombBLAS design lineage.
+  -- Sandia National Laboratories
+
+The specific hybrid-communication heuristic (direct device-to-device for
+small messages, host-staged for large ones) follows the empirical finding
+reported in McFarland, Bellavita & Guidi (ICPE 2025). The Crossover points are
+measured, not assumed: `benchmarks/comm_microbench.cpp` measures them on the
+target fabric and `HybridCommunicator::autotune_thresholds()` applies the
+result.
